@@ -1,6 +1,62 @@
+@import "tailwindcss";
+
+/* FullCalendar の“全体見た目”上書き */
+@layer components {
+  /* .fc {
+    @apply rounded-xl bg-white;
+  } */
+
+  .fc .fc-toolbar {
+    @apply !mb-0;
+  }
+
+  .fc .fc-toolbar-title {
+    @apply font-bold;
+  }
+
+  .fc .fc-daygrid-day-top {
+    @apply text-xl !flex-row;
+  }
+  .fc .fc-button {
+    @apply rounded-md border px-3 py-1 text-sm shadow-none;
+  }
+  .fc .fc-button-primary {
+    @apply bg-black text-white;
+  }
+  .fc .fc-button-primary:not(:disabled).fc-button-active {
+    @apply bg-black/80;
+  }
+
+  .fc .fc-scrollgrid {
+    @apply border;
+  }
+
+  .fc .fc-event {
+    @apply rounded-md border-0 px-2 py-1 text-xs shadow-sm;
+  }
+
+  /* 日曜（0） */
+  .fc .fc-col-header-cell.fc-day-sun {
+    @apply text-red-500;
+  }
+  .fc .fc-daygrid-day.fc-day-sun .fc-daygrid-day-number {
+    @apply text-red-500;
+  }
+  /* 土曜（6） */
+  .fc .fc-col-header-cell.fc-day-sat {
+    @apply text-blue-500;
+  }
+  .fc .fc-daygrid-day.fc-day-sat .fc-daygrid-day-number {
+    @apply text-blue-500;
+  }
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
+}
+* {
+  box-sizing: border-box;
 }
