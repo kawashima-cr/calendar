@@ -3,34 +3,64 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, {
+  type DateClickArg,
+} from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
+import type { EventInput } from "@fullcalendar/core";
 
 function getYearMonth(date: Date) {
   const year = new Intl.DateTimeFormat("ja-JP", { year: "numeric" }).format(
     date
   );
-  // "1月" を作りたいので month: "numeric" + "月" のほうが確実
-  const monthNum = new Intl.DateTimeFormat("ja-JP", {
+  const month = new Intl.DateTimeFormat("ja-JP", {
     month: "numeric",
   }).format(date);
-  const month = `${monthNum}`;
   return { year, month };
 }
 
 export default function CalendarPage() {
+  // FullCalendarを外から操作するためのref
   const calRef = useRef<FullCalendar | null>(null);
   const api = () => calRef.current?.getApi();
 
-  // 表示中の月を表す基準日
+  // ヘッダーの年/月表示用（「今表示してる月」を表す基準日）
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
   const { year, month } = useMemo(() => getYearMonth(anchorDate), [anchorDate]);
+
+  const [events, setEvents] = useState<EventInput[]>([]);
+
+  const syncAnchorDateFromCalendar = () => {
+    const d = api()?.getDate(); // FullCalendarが“今”持っている日付（基準日）を取得
+    if (d) setAnchorDate(d); // それをヘッダー表示用のstateに反映
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    const title = prompt("予定タイトル", "新規予定");
+    // TODOエラーの実装
+    if (!title) return;
+
+    const start = arg.date;
+    const end = arg.allDay
+      ? undefined
+      : new Date(start.getTime() + 30 * 60 * 1000);
+    setEvents((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        title,
+        start,
+        end,
+        allDay: arg.allDay,
+      },
+    ]);
+  };
 
   return (
     <div className="">
       {/* 自作ヘッダー */}
       <div className="">
-        <div className="grid grid-cols-9 items-stretch border-2 divide-x-2">
+        <div className="grid grid-cols-9 items-stretch border-2 divide-x-2 ">
           {/* 左端: 年（小） + 月（大） */}
           <div className="col-span-2 py-4 flex items-center justify-center">
             <span className="text-xl tabular-nums">{year}</span>
@@ -40,33 +70,33 @@ export default function CalendarPage() {
           </div>
 
           {/* 右側: ナビ・ビュー切替（お好みで） */}
-          <div className="col-span-1 py-4 flex items-center justify-center">
-            <button
-              className="rounded-md px-3 py-1 text-lg font-semibold"
-              onClick={() => api()?.prev()}
-              type="button"
-            >
+          <button
+            className="col-span-1 py-4 flex items-center justify-center hover:bg-gray-50"
+            onClick={() => api()?.prev()}
+            type="button"
+          >
+            <span className="rounded-md px-3 py-1 text-lg font-semibold">
               ←
-            </button>
-          </div>
-          <div className="col-span-1 py-4 flex items-center justify-center">
-            <button
-              className="rounded-md px-3 py-1 text-md font-semibold"
-              onClick={() => api()?.today()}
-              type="button"
-            >
+            </span>
+          </button>
+          <button
+            className="col-span-1 py-4 flex items-center justify-center hover:bg-gray-50"
+            onClick={() => api()?.today()}
+            type="button"
+          >
+            <span className="rounded-md px-3 py-1 text-md font-semibold">
               TODAY
-            </button>
-          </div>
-          <div className="col-span-1 py-4 flex items-center justify-center">
-            <button
-              className="rounded-md px-3 py-1 text-lg font-semibold"
-              onClick={() => api()?.next()}
-              type="button"
-            >
+            </span>
+          </button>
+          <button
+            className="col-span-1 py-4 flex items-center justify-center hover:bg-gray-50"
+            onClick={() => api()?.next()}
+            type="button"
+          >
+            <span className="rounded-md px-3 py-1 text-lg font-semibold">
               →
-            </button>
-          </div>
+            </span>
+          </button>
 
           {/* <div className="ml-2 h-6 w-px bg-gray-200" />
 
@@ -109,13 +139,19 @@ export default function CalendarPage() {
           headerToolbar={false}
           height="100%"
           initialView="dayGridMonth"
-          dayMaxEvents={true}
+          dayMaxEvents
+          nowIndicator
           selectable
           editable
-          // 表示範囲が変わるたびに呼ばれるので、ここで年/月を更新
-          datesSet={(arg) => {
-            // 月ビューは currentStart が「その月の先頭」になるので基準日にしやすい
-            setAnchorDate(arg.view.currentStart);
+          unselectAuto
+          dateClick={handleDateClick}
+          events={events}
+          eventClick={(info) => {
+            // デモ: クリックで削除（任意）
+            const ok = window.confirm(`削除しますか？: ${info.event.title}`);
+            if (!ok) return;
+            const id = info.event.id;
+            setEvents((prev) => prev.filter((e) => e.id !== id));
           }}
         />
       </div>
