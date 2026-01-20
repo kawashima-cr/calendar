@@ -11,7 +11,7 @@ import type { EventInput } from "@fullcalendar/core";
 
 function getYearMonth(date: Date) {
   const year = new Intl.DateTimeFormat("ja-JP", { year: "numeric" }).format(
-    date
+    date,
   );
   const month = new Intl.DateTimeFormat("ja-JP", {
     month: "numeric",
@@ -29,11 +29,6 @@ export default function CalendarPage() {
   const { year, month } = useMemo(() => getYearMonth(anchorDate), [anchorDate]);
 
   const [events, setEvents] = useState<EventInput[]>([]);
-
-  const syncAnchorDateFromCalendar = () => {
-    const d = api()?.getDate(); // FullCalendarが“今”持っている日付（基準日）を取得
-    if (d) setAnchorDate(d); // それをヘッダー表示用のstateに反映
-  };
 
   const handleDateClick = (arg: DateClickArg) => {
     const title = prompt("予定タイトル", "新規予定");
@@ -145,6 +140,9 @@ export default function CalendarPage() {
           editable
           unselectAuto
           dateClick={handleDateClick}
+          datesSet={(info) => {
+            setAnchorDate(info.view.currentStart);
+          }}
           events={events}
           eventClick={(info) => {
             // デモ: クリックで削除（任意）

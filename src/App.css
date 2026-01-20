@@ -2,6 +2,10 @@
 
 /* FullCalendar の“全体見た目”上書き */
 @layer components {
+  .fc {
+    --fc-today-bg-color: #000;
+  }
+
   /* .fc {
     @apply rounded-xl bg-white;
   } */
@@ -48,6 +52,11 @@
   }
   .fc .fc-daygrid-day.fc-day-sat .fc-daygrid-day-number {
     @apply text-blue-500;
+  }
+
+  /* 今日 */
+  .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    @apply text-white;
   }
 }
 
