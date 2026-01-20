@@ -9,6 +9,24 @@ import interactionPlugin, {
 import rrulePlugin from "@fullcalendar/rrule";
 import type { EventInput } from "@fullcalendar/core";
 
+type Draft = {
+  title: string;
+  allDay: boolean;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+};
+
+const initialDraft: Draft = {
+  title: "",
+  allDay: true,
+  startDate: "",
+  startTime: "09:00",
+  endDate: "",
+  endTime: "10:00",
+};
+
 function getYearMonth(date: Date) {
   const year = new Intl.DateTimeFormat("ja-JP", { year: "numeric" }).format(
     date,
@@ -28,27 +46,38 @@ export default function CalendarPage() {
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
   const { year, month } = useMemo(() => getYearMonth(anchorDate), [anchorDate]);
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draft, setDraft] = useState<Draft>(initialDraft);
   const [events, setEvents] = useState<EventInput[]>([]);
 
-  const handleDateClick = (arg: DateClickArg) => {
-    const title = prompt("予定タイトル", "新規予定");
-    // TODOエラーの実装
-    if (!title) return;
+  const createDraftFromDate = (date: Date): Draft => {
+    const toYmd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
 
-    const start = arg.date;
-    const end = arg.allDay
-      ? undefined
-      : new Date(start.getTime() + 30 * 60 * 1000);
-    setEvents((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        title,
-        start,
-        end,
-        allDay: arg.allDay,
-      },
-    ]);
+    const startDate = toYmd(date);
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    const endDate = toYmd(next);
+
+    return {
+      title: "",
+      allDay: true,
+      startDate,
+      startTime: "09:00",
+      endDate,
+      endTime: "10:00",
+    };
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    setDraft(createDraftFromDate(arg.date));
+    setIsModalOpen(true);
+
+    setEvents((prev) => [...prev]);
   };
 
   return (
@@ -153,6 +182,81 @@ export default function CalendarPage() {
           }}
         />
       </div>
+      {/* モーダル */}
+      {isModalOpen && (
+        <div className="fixed bg-zinc-50 h-100 w-70 px-4 py-5 z-20 rounded-xs border-4 top-[30%] left-[50%] shadow-lg">
+          <form action="">
+            <label>
+              タイトル
+              <input
+                type="text"
+                name="title"
+                value={draft.title}
+                onChange={(e) =>
+                  setDraft((draft) => ({ ...draft, title: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              終日
+              <input
+                type="checkbox"
+                name="allDay"
+                checked={draft.allDay}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, allDay: e.target.checked }))
+                }
+              />
+            </label>
+            <label>
+              開始日付
+              <input
+                type="text"
+                name="startDate"
+                value={draft.startDate}
+                onChange={(e) =>
+                  setDraft((draft) => ({ ...draft, startDate: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              開始時間
+              <input
+                type="text"
+                name="startTime"
+                value={draft.startTime}
+                onChange={(e) =>
+                  setDraft((draft) => ({ ...draft, startTime: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              終了日付
+              <input
+                type="text"
+                name="endDate"
+                value={draft.endDate}
+                onChange={(e) =>
+                  setDraft((draft) => ({ ...draft, endDate: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              終了時間
+              <input
+                type="text"
+                name="endTime"
+                value={draft.endTime}
+                onChange={(e) =>
+                  setDraft((draft) => ({ ...draft, endTime: e.target.value }))
+                }
+              />
+            </label>
+
+            <button type="submit" onClick={() => console.log("!")}></button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
