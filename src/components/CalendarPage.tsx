@@ -8,6 +8,7 @@ import interactionPlugin, {
 } from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
 import type { EventInput } from "@fullcalendar/core";
+import { IconX } from "@tabler/icons-react";
 
 type Draft = {
   title: string;
@@ -78,6 +79,14 @@ export default function CalendarPage() {
     setIsModalOpen(true);
 
     setEvents((prev) => [...prev]);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleSave = (event: React.FormEvent) => {
+    event.preventDefault();
   };
 
   return (
@@ -184,77 +193,133 @@ export default function CalendarPage() {
       </div>
       {/* モーダル */}
       {isModalOpen && (
-        <div className="fixed bg-zinc-50 h-100 w-70 px-4 py-5 z-20 rounded-xs border-4 top-[30%] left-[50%] shadow-lg">
-          <form action="">
-            <label>
-              タイトル
-              <input
-                type="text"
-                name="title"
-                value={draft.title}
-                onChange={(e) =>
-                  setDraft((draft) => ({ ...draft, title: e.target.value }))
-                }
-              />
-            </label>
-            <label>
-              終日
-              <input
-                type="checkbox"
-                name="allDay"
-                checked={draft.allDay}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, allDay: e.target.checked }))
-                }
-              />
-            </label>
-            <label>
-              開始日付
-              <input
-                type="text"
-                name="startDate"
-                value={draft.startDate}
-                onChange={(e) =>
-                  setDraft((draft) => ({ ...draft, startDate: e.target.value }))
-                }
-              />
-            </label>
-            <label>
-              開始時間
-              <input
-                type="text"
-                name="startTime"
-                value={draft.startTime}
-                onChange={(e) =>
-                  setDraft((draft) => ({ ...draft, startTime: e.target.value }))
-                }
-              />
-            </label>
-            <label>
-              終了日付
-              <input
-                type="text"
-                name="endDate"
-                value={draft.endDate}
-                onChange={(e) =>
-                  setDraft((draft) => ({ ...draft, endDate: e.target.value }))
-                }
-              />
-            </label>
-            <label>
-              終了時間
-              <input
-                type="text"
-                name="endTime"
-                value={draft.endTime}
-                onChange={(e) =>
-                  setDraft((draft) => ({ ...draft, endTime: e.target.value }))
-                }
-              />
-            </label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-xs">
+          <div className="w-full max-w-sm border-3 border-black bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-900">
+                  NEW EVENT
+                </h2>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                type="button"
+                className="p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 hover:rotate-90"
+              >
+                <IconX stroke={2} className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <label className="block text-sm font-medium text-zinc-800 text-left">
+                タイトル
+                <input
+                  type="text"
+                  name="title"
+                  value={draft.title}
+                  onChange={(e) =>
+                    setDraft((draft) => ({ ...draft, title: e.target.value }))
+                  }
+                  placeholder="例: 打ち合わせ"
+                  className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                />
+              </label>
 
-            <button type="submit" onClick={() => console.log("!")}></button>
-          </form>
+              <label className="w-max flex items-center gap-3 px-3 py-2 text-sm font-medium text-zinc-800">
+                終日
+                <input
+                  type="checkbox"
+                  name="allDay"
+                  checked={draft.allDay}
+                  onChange={(e) =>
+                    setDraft((d) => ({ ...d, allDay: e.target.checked }))
+                  }
+                  className="h-4 w-4 accent-black"
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-left block text-sm font-medium text-zinc-800">
+                  開始日付
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={draft.startDate}
+                    onChange={(e) =>
+                      setDraft((draft) => ({
+                        ...draft,
+                        startDate: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  />
+                </label>
+                <label className="text-left block text-sm font-medium text-zinc-800">
+                  開始時間
+                  <input
+                    type="time"
+                    name="startTime"
+                    value={draft.startTime}
+                    onChange={(e) =>
+                      setDraft((draft) => ({
+                        ...draft,
+                        startTime: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-left block text-sm font-medium text-zinc-800">
+                  終了日付
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={draft.endDate}
+                    onChange={(e) =>
+                      setDraft((draft) => ({
+                        ...draft,
+                        endDate: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  />
+                </label>
+                <label className="text-left block text-sm font-medium text-zinc-800">
+                  終了時間
+                  <input
+                    type="time"
+                    name="endTime"
+                    value={draft.endTime}
+                    onChange={(e) =>
+                      setDraft((draft) => ({
+                        ...draft,
+                        endTime: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="border-2 border-black px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="border-2 border-black bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
+                >
+                  保存
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
