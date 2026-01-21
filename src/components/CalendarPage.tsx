@@ -284,21 +284,23 @@ export default function CalendarPage() {
                     className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                   />
                 </label>
-                <label className="text-left block text-sm font-medium text-zinc-800">
-                  開始時間
-                  <input
-                    type="time"
-                    name="startTime"
-                    value={draft.startTime}
-                    onChange={(e) =>
-                      setDraft((draft) => ({
-                        ...draft,
-                        startTime: e.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
-                  />
-                </label>
+                {!draft.allDay && (
+                  <label className="text-left block text-sm font-medium text-zinc-800">
+                    開始時間
+                    <input
+                      type="time"
+                      name="startTime"
+                      value={draft.startTime}
+                      onChange={(e) =>
+                        setDraft((draft) => ({
+                          ...draft,
+                          startTime: e.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -317,21 +319,23 @@ export default function CalendarPage() {
                     className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                   />
                 </label>
-                <label className="text-left block text-sm font-medium text-zinc-800">
-                  終了時間
-                  <input
-                    type="time"
-                    name="endTime"
-                    value={draft.endTime}
-                    onChange={(e) =>
-                      setDraft((draft) => ({
-                        ...draft,
-                        endTime: e.target.value,
-                      }))
-                    }
-                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
-                  />
-                </label>
+                {!draft.allDay && (
+                  <label className="text-left block text-sm font-medium text-zinc-800">
+                    終了時間
+                    <input
+                      type="time"
+                      name="endTime"
+                      value={draft.endTime}
+                      onChange={(e) =>
+                        setDraft((draft) => ({
+                          ...draft,
+                          endTime: e.target.value,
+                        }))
+                      }
+                      className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
