@@ -60,9 +60,7 @@ export default function CalendarPage() {
     };
 
     const startDate = toYmd(date);
-    const next = new Date(date);
-    next.setDate(next.getDate() + 1);
-    const endDate = toYmd(next);
+    const endDate = startDate;
 
     return {
       title: "",
@@ -74,11 +72,41 @@ export default function CalendarPage() {
     };
   };
 
+  const parseLocalDateTime = (ymd: string, hm = "00:00") => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    const [hh, mm] = hm.split(":").map(Number);
+    return new Date(y, m - 1, d, hh, mm, 0, 0);
+  };
+
+  const addDays = (date: Date, days: number) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+  };
+
+  const draftToEvent = (draft: Draft): EventInput => {
+    const start = draft.allDay
+      ? parseLocalDateTime(draft.startDate)
+      : parseLocalDateTime(draft.startDate, draft.startTime);
+
+    const endBase = draft.allDay
+      ? parseLocalDateTime(draft.endDate)
+      : parseLocalDateTime(draft.endDate, draft.endTime);
+
+    const end = draft.allDay ? addDays(endBase, 1) : endBase;
+
+    return {
+      id: crypto.randomUUID(),
+      title: draft.title.trim(),
+      start,
+      end,
+      allDay: draft.allDay,
+    };
+  };
+
   const handleDateClick = (arg: DateClickArg) => {
     setDraft(createDraftFromDate(arg.date));
     setIsModalOpen(true);
-
-    setEvents((prev) => [...prev]);
   };
 
   const handleCloseModal = () => {
@@ -87,6 +115,9 @@ export default function CalendarPage() {
 
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
+    const newEvent = draftToEvent(draft);
+    setEvents((prev) => [...prev, newEvent]);
+    setIsModalOpen(false);
   };
 
   return (
