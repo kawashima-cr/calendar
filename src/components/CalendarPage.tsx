@@ -28,6 +28,14 @@ const initialDraft: Draft = {
   endTime: "10:00",
 };
 
+type ErrorMessage = {
+  title?: string;
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+};
+
 function getYearMonth(date: Date) {
   const year = new Intl.DateTimeFormat("ja-JP", { year: "numeric" }).format(
     date,
@@ -47,9 +55,22 @@ export default function CalendarPage() {
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
   const { year, month } = useMemo(() => getYearMonth(anchorDate), [anchorDate]);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [draft, setDraft] = useState<Draft>(initialDraft);
   const [events, setEvents] = useState<EventInput[]>([]);
+  const [draft, setDraft] = useState<Draft>(initialDraft);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState<ErrorMessage | null>({});
+
+  const parseLocalDateTime = (ymd: string, hm = "00:00") => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    const [hh, mm] = hm.split(":").map(Number);
+    return new Date(y, m - 1, d, hh, mm, 0, 0);
+  };
+
+  const addDays = (date: Date, days: number) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+  };
 
   const createDraftFromDate = (date: Date): Draft => {
     const toYmd = (d: Date) => {
@@ -72,18 +93,6 @@ export default function CalendarPage() {
     };
   };
 
-  const parseLocalDateTime = (ymd: string, hm = "00:00") => {
-    const [y, m, d] = ymd.split("-").map(Number);
-    const [hh, mm] = hm.split(":").map(Number);
-    return new Date(y, m - 1, d, hh, mm, 0, 0);
-  };
-
-  const addDays = (date: Date, days: number) => {
-    const next = new Date(date);
-    next.setDate(next.getDate() + days);
-    return next;
-  };
-
   const draftToEvent = (draft: Draft): EventInput => {
     const start = draft.allDay
       ? parseLocalDateTime(draft.startDate)
@@ -104,6 +113,44 @@ export default function CalendarPage() {
     };
   };
 
+  const validateDraft = (draft: Draft) => {
+    const errors: ErrorMessage = {};
+
+    const title = draft.title.trim();
+    if (!title) {
+      errors.title = "タイトルは必須です。";
+    }
+    if (!draft.startDate) {
+      errors.startDate = "日付を入力してください";
+    }
+    if (!draft.endDate) {
+      errors.endDate = "日付を入力してください";
+    }
+    if (!draft.allDay) {
+      if (!draft.startTime) {
+        errors.startTime = "時間を入力してください";
+      }
+      if (!draft.endTime) {
+        errors.endTime = "時間を入力してください";
+      }
+    }
+    if (draft.startDate && draft.endDate) {
+      const startDate = parseLocalDateTime(draft.startDate);
+      const endDate = parseLocalDateTime(draft.endDate);
+      if (endDate < startDate) {
+        errors.endDate = "開始日付以降にしてください";
+      } else if (!draft.allDay && draft.startTime && draft.endTime) {
+        const startTime = parseLocalDateTime(draft.startDate, draft.startTime);
+        const endTime = parseLocalDateTime(draft.endDate, draft.endTime);
+        if (endTime <= startTime) {
+          errors.endTime = "開始時間以降にしてください";
+        }
+      }
+    }
+
+    return errors;
+  };
+
   const handleDateClick = (arg: DateClickArg) => {
     setDraft(createDraftFromDate(arg.date));
     setIsModalOpen(true);
@@ -111,10 +158,19 @@ export default function CalendarPage() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setFormError(null);
   };
 
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
+
+    const errors = validateDraft(draft);
+    if (Object.keys(errors).length) {
+      setFormError(errors);
+      return;
+    }
+    setFormError(null);
+
     const newEvent = draftToEvent(draft);
     setEvents((prev) => [...prev, newEvent]);
     setIsModalOpen(false);
@@ -240,9 +296,16 @@ export default function CalendarPage() {
                 <IconX stroke={2} className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4" noValidate>
               <label className="block text-sm font-medium text-zinc-800 text-left">
                 タイトル
+                <div className="h-4">
+                  {formError && (
+                    <p className="mb-1 text-xs text-red-500 text-left">
+                      {formError.title}
+                    </p>
+                  )}
+                </div>
                 <input
                   type="text"
                   name="title"
@@ -251,7 +314,7 @@ export default function CalendarPage() {
                     setDraft((draft) => ({ ...draft, title: e.target.value }))
                   }
                   placeholder="例: 打ち合わせ"
-                  className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                 />
               </label>
 
@@ -271,6 +334,13 @@ export default function CalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-left block text-sm font-medium text-zinc-800">
                   開始日付
+                  <div className="h-4">
+                    {formError && (
+                      <p className="mb-1 text-xs text-red-500 text-left">
+                        {formError.startDate}
+                      </p>
+                    )}
+                  </div>
                   <input
                     type="date"
                     name="startDate"
@@ -281,12 +351,19 @@ export default function CalendarPage() {
                         startDate: e.target.value,
                       }))
                     }
-                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                    className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                   />
                 </label>
                 {!draft.allDay && (
                   <label className="text-left block text-sm font-medium text-zinc-800">
                     開始時間
+                    <div className="h-4">
+                      {formError && (
+                        <p className="mb-1 text-xs text-red-500 text-left">
+                          {formError.startTime}
+                        </p>
+                      )}
+                    </div>
                     <input
                       type="time"
                       name="startTime"
@@ -297,7 +374,7 @@ export default function CalendarPage() {
                           startTime: e.target.value,
                         }))
                       }
-                      className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                      className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                     />
                   </label>
                 )}
@@ -306,6 +383,13 @@ export default function CalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-left block text-sm font-medium text-zinc-800">
                   終了日付
+                  <div className="h-4">
+                    {formError && (
+                      <p className="mb-1 text-xs text-red-500 text-left">
+                        {formError.endDate}
+                      </p>
+                    )}
+                  </div>
                   <input
                     type="date"
                     name="endDate"
@@ -316,12 +400,19 @@ export default function CalendarPage() {
                         endDate: e.target.value,
                       }))
                     }
-                    className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                    className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                   />
                 </label>
                 {!draft.allDay && (
                   <label className="text-left block text-sm font-medium text-zinc-800">
                     終了時間
+                    <div className="h-4">
+                      {formError && (
+                        <p className="mb-1 text-xs text-red-500 text-left">
+                          {formError.endTime}
+                        </p>
+                      )}
+                    </div>
                     <input
                       type="time"
                       name="endTime"
@@ -332,7 +423,7 @@ export default function CalendarPage() {
                           endTime: e.target.value,
                         }))
                       }
-                      className="mt-2 w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                      className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                     />
                   </label>
                 )}
