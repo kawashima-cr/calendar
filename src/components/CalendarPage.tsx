@@ -7,8 +7,8 @@ import interactionPlugin, {
   type DateClickArg,
 } from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
-import type { EventInput } from "@fullcalendar/core";
-import { IconX } from "@tabler/icons-react";
+import type { EventApi, EventClickArg, EventInput } from "@fullcalendar/core";
+import { IconEdit, IconTrash, IconX } from "@tabler/icons-react";
 
 type Draft = {
   title: string;
@@ -58,7 +58,10 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formError, setFormError] = useState<ErrorMessage | null>({});
+  const [formError, setFormError] = useState<ErrorMessage | null>(null);
+  const [detailModal, setDetailModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const parseLocalDateTime = (ymd: string, hm = "00:00") => {
     const [y, m, d] = ymd.split("-").map(Number);
@@ -113,6 +116,32 @@ export default function CalendarPage() {
     };
   };
 
+  const toYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+
+  const eventToDraft = (ev: EventApi): Draft => {
+    const start = ev.start ?? new Date();
+    const endBase = ev.end ?? start;
+    const endForDisplay = ev.allDay
+      ? new Date(
+          endBase.getFullYear(),
+          endBase.getMonth(),
+          endBase.getDate() - 1,
+        )
+      : endBase;
+
+    return {
+      title: ev.title,
+      allDay: ev.allDay,
+      startDate: toYmd(start),
+      startTime: ev.startStr.slice(11, 16) || "09:00",
+      endDate: toYmd(endForDisplay),
+      endTime: ev.endStr.slice(11, 16) || "10:00",
+    };
+  };
+
   const validateDraft = (draft: Draft) => {
     const errors: ErrorMessage = {};
 
@@ -151,14 +180,19 @@ export default function CalendarPage() {
     return errors;
   };
 
-  const handleDateClick = (arg: DateClickArg) => {
-    setDraft(createDraftFromDate(arg.date));
-    setIsModalOpen(true);
+  const closeAll = () => {
+    setIsModalOpen(false);
+    setDetailModal(false);
+    setIsEditing(false);
+    setSelectedEventId(null);
+    setDraft(initialDraft);
+    setFormError(null);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
+  const handleDateClick = (arg: DateClickArg) => {
+    setDraft(createDraftFromDate(arg.date));
     setFormError(null);
+    setIsModalOpen(true);
   };
 
   const handleSave = (event: React.FormEvent) => {
@@ -171,10 +205,55 @@ export default function CalendarPage() {
     }
     setFormError(null);
 
+    if (isEditing && !selectedEventId) {
+      setFormError({ title: "編集対象が選択されていません。" });
+      return;
+    }
+
+    if (isEditing && selectedEventId) {
+      const editEvent = { ...draftToEvent(draft), id: selectedEventId };
+      setEvents((prev) =>
+        prev.map((e) => (e.id === selectedEventId ? editEvent : e)),
+      );
+      closeAll();
+      return;
+    }
+
     const newEvent = draftToEvent(draft);
     setEvents((prev) => [...prev, newEvent]);
-    setIsModalOpen(false);
+    closeAll();
   };
+
+  const handleCloseModal = () => {
+    closeAll();
+  };
+  const handleCloseDetail = () => {
+    setDetailModal(false);
+    setSelectedEventId(null);
+  };
+
+  const handleEventClick = (info: EventClickArg) => {
+    setDraft(eventToDraft(info.event));
+    setSelectedEventId(info.event.id);
+    setFormError(null);
+    setDetailModal(true);
+    setIsEditing(false);
+  };
+
+  const handleEdit = () => {
+    setDetailModal(false);
+    setIsEditing(true);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (!selectedEventId) return;
+    setEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
+    closeAll();
+  };
+
+  const title = isEditing ? "EDIT" : "NEW EVENT";
+  const submit = isEditing ? "更新" : "保存";
 
   return (
     <div className="">
@@ -217,31 +296,6 @@ export default function CalendarPage() {
               →
             </span>
           </button>
-
-          {/* <div className="ml-2 h-6 w-px bg-gray-200" />
-
-            <button
-              className="rounded-md border-2 px-3 py-1 text-sm"
-              onClick={() => api()?.changeView("dayGridMonth")}
-              type="button"
-            >
-              Month
-            </button>
-            <button
-              className="rounded-md border-2 px-3 py-1 text-sm"
-              onClick={() => api()?.changeView("timeGridWeek")}
-              type="button"
-            >
-              Week
-            </button>
-            <button
-              className="rounded-md border-2 px-3 py-1 text-sm"
-              onClick={() => api()?.changeView("timeGridDay")}
-              type="button"
-            >
-              Day
-            </button>
-          </div> */}
         </div>
       </div>
 
@@ -269,24 +323,17 @@ export default function CalendarPage() {
             setAnchorDate(info.view.currentStart);
           }}
           events={events}
-          eventClick={(info) => {
-            // デモ: クリックで削除（任意）
-            const ok = window.confirm(`削除しますか？: ${info.event.title}`);
-            if (!ok) return;
-            const id = info.event.id;
-            setEvents((prev) => prev.filter((e) => e.id !== id));
-          }}
+          eventClick={(info) => handleEventClick(info)}
         />
       </div>
-      {/* モーダル */}
+
+      {/* 新規登録 / 編集 モーダル */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-xs">
           <div className="w-full max-w-sm border-3 border-black bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-zinc-900">
-                  NEW EVENT
-                </h2>
+                <h2 className="text-xl font-semibold text-zinc-900">{title}</h2>
               </div>
               <button
                 onClick={handleCloseModal}
@@ -299,9 +346,9 @@ export default function CalendarPage() {
             <form onSubmit={handleSave} className="space-y-4" noValidate>
               <label className="block text-sm font-medium text-zinc-800 text-left">
                 タイトル
-                <div className="h-4">
+                <div className="h-4 mb-1">
                   {formError && (
-                    <p className="mb-1 text-xs text-red-500 text-left">
+                    <p className="text-xs text-red-500 text-left">
                       {formError.title}
                     </p>
                   )}
@@ -441,10 +488,52 @@ export default function CalendarPage() {
                   type="submit"
                   className="border-2 border-black bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
                 >
-                  保存
+                  {submit}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 詳細モーダル */}
+      {detailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-xs">
+          <div className="w-full max-w-sm border-3 border-black bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <div className="flex justify-between">
+                <h2 className="text-xl font-semibold text-zinc-900">DERAIL</h2>
+                <div className="flex gap-2 justify-end">
+                  <IconEdit
+                    className="text-zinc-600 cursor-pointer hover:text-zinc-500"
+                    onClick={handleEdit}
+                  />
+                  <IconTrash
+                    className="text-zinc-600 cursor-pointer hover:text-zinc-500"
+                    onClick={handleDelete}
+                  />
+                  <IconX
+                    className="text-zinc-600 cursor-pointer hover:text-zinc-500"
+                    onClick={handleCloseDetail}
+                  />
+                </div>
+              </div>
+              <div className="text-3xl text-left text-zinc-800 mt-5">
+                {draft.title}
+              </div>
+              <div className="text-md text-left text-zinc-600 mt-2">
+                {draft.allDay ? (
+                  <div>
+                    {draft.startDate} ～ {draft.endDate}（終日）
+                  </div>
+                ) : (
+                  <div>
+                    {draft.startDate} / {draft.startTime} ～ {draft.endDate} /{" "}
+                    {draft.endTime}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
