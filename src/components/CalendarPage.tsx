@@ -7,7 +7,12 @@ import interactionPlugin, {
   type DateClickArg,
 } from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
-import type { EventApi, EventClickArg, EventInput } from "@fullcalendar/core";
+import type {
+  DateSelectArg,
+  EventApi,
+  EventClickArg,
+  EventInput,
+} from "@fullcalendar/core";
 import { IconEdit, IconTrash, IconX } from "@tabler/icons-react";
 
 type Draft = {
@@ -180,6 +185,23 @@ export default function CalendarPage() {
     return errors;
   };
 
+  const createDraftFromRange = (
+    start: Date,
+    end: Date,
+    allDay: boolean,
+  ): Draft => {
+    const endForDisplay = allDay ? addDays(end, -1) : end;
+
+    return {
+      title: "",
+      allDay,
+      startDate: toYmd(start),
+      startTime: allDay ? "09:00" : toHm(start),
+      endDate: toYmd(endForDisplay),
+      endTime: allDay ? "10:00" : toHm(endForDisplay),
+    };
+  };
+
   const closeAll = () => {
     setIsModalOpen(false);
     setDetailModal(false);
@@ -250,6 +272,16 @@ export default function CalendarPage() {
     if (!selectedEventId) return;
     setEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
     closeAll();
+  };
+
+  const handleSelectRange = (info: DateSelectArg) => {
+    setDraft(createDraftFromRange(info.start, info.end, info.allDay));
+    setIsModalOpen(true);
+    setIsEditing(false);
+    setSelectedEventId(null);
+    setFormError(null);
+
+    info.view.calendar.unselect();
   };
 
   const title = isEditing ? "EDIT" : "NEW EVENT";
@@ -323,7 +355,8 @@ export default function CalendarPage() {
             setAnchorDate(info.view.currentStart);
           }}
           events={events}
-          eventClick={(info) => handleEventClick(info)}
+          eventClick={handleEventClick}
+          select={handleSelectRange}
         />
       </div>
 
