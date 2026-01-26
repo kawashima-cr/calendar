@@ -80,17 +80,17 @@ export default function CalendarPage() {
     return next;
   };
 
-  const createDraftFromDate = (date: Date): Draft => {
-    const toYmd = (d: Date) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    };
+  const toYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
 
+  const toHm = (d: Date) =>
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+  const createDraftFromDate = (date: Date): Draft => {
     const startDate = toYmd(date);
     const endDate = startDate;
-
     return {
       title: "",
       allDay: true,
@@ -120,11 +120,6 @@ export default function CalendarPage() {
       allDay: draft.allDay,
     };
   };
-
-  const toYmd = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
 
   const eventToDraft = (ev: EventApi): Draft => {
     const start = ev.start ?? new Date();
@@ -380,7 +375,7 @@ export default function CalendarPage() {
               <label className="block text-sm font-medium text-zinc-800 text-left">
                 タイトル
                 <div className="h-4 mb-1">
-                  {formError && (
+                  {formError?.title && (
                     <p className="text-xs text-red-500 text-left">
                       {formError.title}
                     </p>
@@ -414,8 +409,8 @@ export default function CalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-left block text-sm font-medium text-zinc-800">
                   開始日付
-                  <div className="h-4">
-                    {formError && (
+                  <div className="h-4 mb-1">
+                    {formError?.startDate && (
                       <p className="mb-1 text-xs text-red-500 text-left">
                         {formError.startDate}
                       </p>
@@ -437,8 +432,8 @@ export default function CalendarPage() {
                 {!draft.allDay && (
                   <label className="text-left block text-sm font-medium text-zinc-800">
                     開始時間
-                    <div className="h-4">
-                      {formError && (
+                    <div className="h-4 mb-1">
+                      {formError?.startTime && (
                         <p className="mb-1 text-xs text-red-500 text-left">
                           {formError.startTime}
                         </p>
@@ -454,7 +449,7 @@ export default function CalendarPage() {
                           startTime: e.target.value,
                         }))
                       }
-                      className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                      className="w-full h-9.5 border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                     />
                   </label>
                 )}
@@ -463,8 +458,8 @@ export default function CalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <label className="text-left block text-sm font-medium text-zinc-800">
                   終了日付
-                  <div className="h-4">
-                    {formError && (
+                  <div className="h-4 mb-1">
+                    {formError?.endDate && (
                       <p className="mb-1 text-xs text-red-500 text-left">
                         {formError.endDate}
                       </p>
@@ -486,8 +481,8 @@ export default function CalendarPage() {
                 {!draft.allDay && (
                   <label className="text-left block text-sm font-medium text-zinc-800">
                     終了時間
-                    <div className="h-4">
-                      {formError && (
+                    <div className="h-4 mb-1">
+                      {formError?.endTime && (
                         <p className="mb-1 text-xs text-red-500 text-left">
                           {formError.endTime}
                         </p>
@@ -503,7 +498,7 @@ export default function CalendarPage() {
                           endTime: e.target.value,
                         }))
                       }
-                      className="w-full border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
+                      className="w-full h-9.5 border border-black bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-0 transition focus:border-black focus:ring-2 focus:ring-black/10"
                     />
                   </label>
                 )}
