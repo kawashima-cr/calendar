@@ -41,6 +41,8 @@ type ErrorMessage = {
   endTime?: string;
 };
 
+type ModalMode = "new" | "edit" | "detail" | null;
+
 function getYearMonth(date: Date) {
   const year = new Intl.DateTimeFormat("ja-JP", { year: "numeric" }).format(
     date,
@@ -62,10 +64,8 @@ export default function CalendarPage() {
 
   const [events, setEvents] = useState<EventInput[]>([]);
   const [draft, setDraft] = useState<Draft>(initialDraft);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [formError, setFormError] = useState<ErrorMessage | null>(null);
-  const [detailModal, setDetailModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const parseLocalDateTime = (ymd: string, hm = "00:00") => {
@@ -198,9 +198,7 @@ export default function CalendarPage() {
   };
 
   const closeAll = () => {
-    setIsModalOpen(false);
-    setDetailModal(false);
-    setIsEditing(false);
+    setModalMode(null);
     setSelectedEventId(null);
     setDraft(initialDraft);
     setFormError(null);
@@ -209,7 +207,7 @@ export default function CalendarPage() {
   const handleDateClick = (arg: DateClickArg) => {
     setDraft(createDraftFromDate(arg.date));
     setFormError(null);
-    setIsModalOpen(true);
+    setModalMode("new");
   };
 
   const handleSave = (event: React.FormEvent) => {
@@ -222,12 +220,12 @@ export default function CalendarPage() {
     }
     setFormError(null);
 
-    if (isEditing && !selectedEventId) {
+    if (modalMode === "edit" && !selectedEventId) {
       setFormError({ title: "編集対象が選択されていません。" });
       return;
     }
 
-    if (isEditing && selectedEventId) {
+    if (modalMode === "edit" && selectedEventId) {
       const editEvent = { ...draftToEvent(draft), id: selectedEventId };
       setEvents((prev) =>
         prev.map((e) => (e.id === selectedEventId ? editEvent : e)),
@@ -245,7 +243,7 @@ export default function CalendarPage() {
     closeAll();
   };
   const handleCloseDetail = () => {
-    setDetailModal(false);
+    setModalMode(null);
     setSelectedEventId(null);
   };
 
@@ -253,14 +251,11 @@ export default function CalendarPage() {
     setDraft(eventToDraft(info.event));
     setSelectedEventId(info.event.id);
     setFormError(null);
-    setDetailModal(true);
-    setIsEditing(false);
+    setModalMode("detail");
   };
 
   const handleEdit = () => {
-    setDetailModal(false);
-    setIsEditing(true);
-    setIsModalOpen(true);
+    setModalMode("edit");
   };
 
   const handleDelete = () => {
@@ -271,14 +266,14 @@ export default function CalendarPage() {
 
   const handleSelectRange = (info: DateSelectArg) => {
     setDraft(createDraftFromRange(info.start, info.end, info.allDay));
-    setIsModalOpen(true);
-    setIsEditing(false);
+    setModalMode("new");
     setSelectedEventId(null);
     setFormError(null);
 
     info.view.calendar.unselect();
   };
 
+  const isEditing = modalMode === "edit";
   const title = isEditing ? "EDIT" : "NEW EVENT";
   const submit = isEditing ? "更新" : "保存";
 
@@ -356,7 +351,7 @@ export default function CalendarPage() {
       </div>
 
       {/* 新規登録 / 編集 モーダル */}
-      {isModalOpen && (
+      {(modalMode === "new" || modalMode === "edit") && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-xs">
           <div className="w-full max-w-sm border-3 border-black bg-white p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
@@ -525,7 +520,7 @@ export default function CalendarPage() {
       )}
 
       {/* 詳細モーダル */}
-      {detailModal && (
+      {modalMode === "detail" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-xs">
           <div className="w-full max-w-sm border-3 border-black bg-white p-6 shadow-2xl">
             <div className="mb-5">
