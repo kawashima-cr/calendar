@@ -150,4 +150,5 @@ app
     },
   );
 
+export type AppType = typeof app;
 export default app;
