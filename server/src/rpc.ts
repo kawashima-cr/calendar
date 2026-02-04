@@ -1,16 +1,17 @@
 import { Hono } from "hono";
+import type { Env } from "hono";
 import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator, type Hook } from "@hono/zod-validator";
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import type { Result, ErrorCode } from "../../shared/result.js";
+import type { Result, ErrorCode, ErrResult } from "../../shared/result.js";
 import type { EventDraft } from "../../shared/event.js";
 
 const adapter = new PrismaLibSql({
   url: process.env.DATABASE_URL!,
   // authToken はローカルSQLiteなら不要
 });
-const eventDraftSchema: z.ZodType<EventDraft> = z
+const eventDraftSchema = z
   .object({
     title: z
       .string()
@@ -30,14 +31,16 @@ const idParamSchema = z.object({
   id: z.uuid("IDが不正です。"),
 });
 
-const onError = (result: any, c: any) =>
-  c.json(
+const onError: Hook<unknown, Env, string, any, ErrResult> = (_result, c) => {
+  if (_result.success) return;
+  return c.json(
     {
       ok: false,
       error: { code: "VALIDATION_ERROR", message: "入力に誤りがあります。" },
     },
     400,
   );
+};
 
 const nowJstString = () => {
   const d = new Date();
@@ -48,17 +51,15 @@ const nowJstString = () => {
 };
 
 const ok = <T>(data: T): Result<T> => ({ ok: true, data });
-const err = (code: ErrorCode, message: string): Result<never> => ({
+const err = (code: ErrorCode, message: string): ErrResult => ({
   ok: false,
   error: { code, message },
 });
 
 const prisma = new PrismaClient({ adapter });
 
-const app = new Hono();
-
-// listEvents
-app
+const app = new Hono()
+  // listEvents
   .get("/events", async (c) => {
     try {
       const events = await prisma.event.findMany({

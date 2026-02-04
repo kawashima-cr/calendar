@@ -12,7 +12,6 @@
     "@prisma/adapter-libsql": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "dotenv": "^17.2.3",
-    "hono": "^4.11.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
