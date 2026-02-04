@@ -1,32 +1,16 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { dbPromise } from "./db.js";
 import { zValidator } from "@hono/zod-validator";
+import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import type { Result, ErrorCode } from "../../shared/result.js";
+import type { EventDraft } from "../../shared/event.js";
 
-type ErrorCode = "VALIDATION_ERROR" | "NOT_FOUND" | "INTERNAL";
-type Result<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: { code: ErrorCode; message: string } };
-
-type EventDraft = {
-  title: string;
-  allDay: boolean;
-  start: string;
-  end: string;
-};
-type Event = EventDraft & { id: string; createdAt: string; updatedAt: string };
-
-const rowToEvent = (row: any): Event => ({
-  id: row.id,
-  title: row.title,
-  allDay: Boolean(row.all_day),
-  start: row.start_at,
-  end: row.end_at,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
+const adapter = new PrismaLibSql({
+  url: process.env.DATABASE_URL!,
+  // authToken はローカルSQLiteなら不要
 });
-
-const eventDraftSchema = z
+const eventDraftSchema: z.ZodType<EventDraft> = z
   .object({
     title: z
       .string()
@@ -68,39 +52,42 @@ const err = (code: ErrorCode, message: string): Result<never> => ({
   ok: false,
   error: { code, message },
 });
+
+const prisma = new PrismaClient({ adapter });
+
 const app = new Hono();
 
 // listEvents
 app
   .get("/events", async (c) => {
-    const db = await dbPromise;
-    const rows = await db.all(
-      "SELECT * FROM events ORDER BY start_at ASC, end_at ASC",
-    );
-    const events = rows.map(rowToEvent);
-    return c.json(ok(events));
+    try {
+      const events = await prisma.event.findMany({
+        orderBy: [{ start: "asc" }, { end: "asc" }],
+      });
+      return c.json(ok(events));
+    } catch (e) {
+      return c.json(err("INTERNAL", "取得に失敗しました。"), 500);
+    }
   })
   // createEvent
   .post("/events", zValidator("json", eventDraftSchema, onError), async (c) => {
     const draft = c.req.valid("json");
-    const id = crypto.randomUUID();
     const now = nowJstString();
-
-    const db = await dbPromise;
-    await db.run(
-      `INSERT INTO events (id, title, start_at, end_at, all_day, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      draft.title.trim(),
-      draft.start,
-      draft.end,
-      draft.allDay ? 1 : 0,
-      now,
-      now,
-    );
-
-    const row = await db.get("SELECT * FROM events WHERE id = ?", id);
-    return c.json(ok(rowToEvent(row)));
+    try {
+      const created = await prisma.event.create({
+        data: {
+          title: draft.title.trim(),
+          allDay: draft.allDay,
+          start: draft.start,
+          end: draft.end,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+      return c.json(ok(created));
+    } catch {
+      return c.json(err("INTERNAL", "作成に失敗しました。"), 500);
+    }
   })
   // updateEvent
   .put(
@@ -110,27 +97,28 @@ app
     async (c) => {
       const { id } = c.req.valid("param");
       const draft = c.req.valid("json");
-      const db = await dbPromise;
 
       const now = nowJstString();
-      const exists = await db.get("SELECT id FROM events WHERE id = ?", id);
-      if (!exists) {
-        return c.json(err("NOT_FOUND", "イベントが見つかりません。"), 404);
-      }
-      await db.run(
-        `UPDATE events
-       SET title = ?, start_at = ?, end_at = ?, all_day = ?, updated_at = ?
-       WHERE id = ?`,
-        draft.title.trim(),
-        draft.start,
-        draft.end,
-        draft.allDay ? 1 : 0,
-        now,
-        id,
-      );
+      try {
+        const exists = await prisma.event.findUnique({ where: { id } });
+        if (!exists) {
+          return c.json(err("NOT_FOUND", "イベントが見つかりません。"), 404);
+        }
 
-      const row = await db.get("SELECT * FROM events WHERE id = ?", id);
-      return c.json(ok(rowToEvent(row)));
+        const updated = await prisma.event.update({
+          where: { id },
+          data: {
+            title: draft.title.trim(),
+            allDay: draft.allDay,
+            start: draft.start,
+            end: draft.end,
+            updatedAt: now,
+          },
+        });
+        return c.json(ok(updated));
+      } catch {
+        return c.json(err("INTERNAL", "更新に失敗しました。"), 500);
+      }
     },
   )
   // deleteEvent
@@ -138,15 +126,18 @@ app
     "/events/:id",
     zValidator("param", idParamSchema, onError),
     async (c) => {
-      const { id } = c.req.param();
-      const db = await dbPromise;
+      const { id } = c.req.valid("param");
+      try {
+        const exists = await prisma.event.findUnique({ where: { id } });
+        if (!exists) {
+          return c.json(err("NOT_FOUND", "イベントが見つかりません。"), 404);
+        }
 
-      const exists = await db.get("SELECT id FROM events WHERE id = ?", id);
-      if (!exists) {
-        return c.json(err("NOT_FOUND", "イベントが見つかりません。"), 404);
+        await prisma.event.delete({ where: { id } });
+        return c.json(ok({ id }));
+      } catch {
+        return c.json(err("INTERNAL", "削除に失敗しました。"), 500);
       }
-      await db.run("DELETE FROM events WHERE id = ?", id);
-      return c.json(ok({ id }));
     },
   );
 
