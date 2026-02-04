@@ -66,6 +66,8 @@ app
       });
       return c.json(ok(events));
     } catch (e) {
+      console.error(e);
+
       return c.json(err("INTERNAL", "取得に失敗しました。"), 500);
     }
   })
@@ -85,7 +87,9 @@ app
         },
       });
       return c.json(ok(created));
-    } catch {
+    } catch (e) {
+      console.error(e);
+
       return c.json(err("INTERNAL", "作成に失敗しました。"), 500);
     }
   })
@@ -116,7 +120,9 @@ app
           },
         });
         return c.json(ok(updated));
-      } catch {
+      } catch (e) {
+        console.error(e);
+
         return c.json(err("INTERNAL", "更新に失敗しました。"), 500);
       }
     },
@@ -135,7 +141,9 @@ app
 
         await prisma.event.delete({ where: { id } });
         return c.json(ok({ id }));
-      } catch {
+      } catch (e) {
+        console.error(e);
+
         return c.json(err("INTERNAL", "削除に失敗しました。"), 500);
       }
     },

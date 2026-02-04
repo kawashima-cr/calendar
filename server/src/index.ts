@@ -1,8 +1,8 @@
+import "dotenv/config";
+import rpcApp from "./rpc.js";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
-import rpcApp from "./rpc.js";
-import "dotenv/config";
 
 const app = new Hono();
 
