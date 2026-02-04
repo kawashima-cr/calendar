@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -11,9 +11,13 @@ import type {
   DateSelectArg,
   EventApi,
   EventClickArg,
+  EventDropArg,
   EventInput,
 } from "@fullcalendar/core";
 import { IconEdit, IconTrash, IconX } from "@tabler/icons-react";
+import { addDays } from "@fullcalendar/core/internal";
+import { listEvents, createEvent, updateEvent, deleteEvent } from "@/lib/api";
+import type { EventDraft, Event as ApiEvent } from "@shared/event";
 
 type Draft = {
   title: string;
@@ -50,6 +54,32 @@ function getYearMonth(date: Date) {
   }).format(date);
   return { year, month };
 }
+
+const toIso = (date: string, time: string) => `${date}T${time}:00`;
+
+const draftToApi = (draft: Draft): EventDraft => ({
+  title: draft.title.trim(),
+  allDay: draft.allDay,
+  start: draft.allDay
+    ? `${draft.startDate}T00:00:00`
+    : toIso(draft.startDate, draft.startTime),
+  end: draft.allDay
+    ? `${draft.endDate}T00:00:00`
+    : toIso(draft.endDate, draft.endTime),
+});
+
+const apiToEventInput = (ev: ApiEvent): EventInput => {
+  const start = new Date(ev.start);
+  const endBase = new Date(ev.end);
+  const end = ev.allDay ? addDays(endBase, 1) : endBase; // FullCalendarは終日がend exclusive
+  return {
+    id: ev.id,
+    title: ev.title,
+    start,
+    end,
+    allDay: ev.allDay,
+  };
+};
 
 export default function CalendarPage() {
   // FullCalendarを外から操作するためのref
@@ -98,26 +128,6 @@ export default function CalendarPage() {
       startTime: "09:00",
       endDate,
       endTime: "10:00",
-    };
-  };
-
-  const draftToEvent = (draft: Draft): EventInput => {
-    const start = draft.allDay
-      ? parseLocalDateTime(draft.startDate)
-      : parseLocalDateTime(draft.startDate, draft.startTime);
-
-    const endBase = draft.allDay
-      ? parseLocalDateTime(draft.endDate)
-      : parseLocalDateTime(draft.endDate, draft.endTime);
-
-    const end = draft.allDay ? addDays(endBase, 1) : endBase;
-
-    return {
-      id: crypto.randomUUID(),
-      title: draft.title.trim(),
-      start,
-      end,
-      allDay: draft.allDay,
     };
   };
 
@@ -206,13 +216,26 @@ export default function CalendarPage() {
     setFormError(null);
   };
 
+  const loadEvents = async () => {
+    const res = await listEvents();
+    if (!res.ok) {
+      setFormError({ title: res.error.message });
+      return;
+    }
+    setEvents(res.data.map(apiToEventInput));
+  };
+
+  useEffect(() => {
+    void loadEvents();
+  }, []);
+
   const handleDateClick = (arg: DateClickArg) => {
     setDraft(createDraftFromDate(arg.date));
     setFormError(null);
     setIsModalOpen(true);
   };
 
-  const handleSave = (event: React.FormEvent) => {
+  const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
 
     const errors = validateDraft(draft);
@@ -220,24 +243,24 @@ export default function CalendarPage() {
       setFormError(errors);
       return;
     }
-    setFormError(null);
 
     if (isEditing && !selectedEventId) {
       setFormError({ title: "編集対象が選択されていません。" });
       return;
     }
 
-    if (isEditing && selectedEventId) {
-      const editEvent = { ...draftToEvent(draft), id: selectedEventId };
-      setEvents((prev) =>
-        prev.map((e) => (e.id === selectedEventId ? editEvent : e)),
-      );
-      closeAll();
+    const payload = draftToApi(draft);
+
+    const res = isEditing
+      ? await updateEvent(selectedEventId!, payload)
+      : await createEvent(payload);
+
+    if (!res.ok) {
+      setFormError({ title: res.error.message });
       return;
     }
 
-    const newEvent = draftToEvent(draft);
-    setEvents((prev) => [...prev, newEvent]);
+    await loadEvents();
     closeAll();
   };
 
@@ -263,9 +286,16 @@ export default function CalendarPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedEventId) return;
-    setEvents((prev) => prev.filter((e) => e.id !== selectedEventId));
+
+    const res = await deleteEvent(selectedEventId);
+    if (!res.ok) {
+      setFormError({ title: res.error.message });
+      return;
+    }
+
+    await loadEvents();
     closeAll();
   };
 
@@ -277,6 +307,19 @@ export default function CalendarPage() {
     setFormError(null);
 
     info.view.calendar.unselect();
+  };
+
+  const handleDrop = async (info: EventDropArg) => {
+    const draft = eventToDraft(info.event);
+    const payload = draftToApi(draft);
+
+    const res = await updateEvent(info.event.id, payload);
+    if (!res.ok) {
+      info.revert();
+      alert(res.error.message);
+      return;
+    }
+    await loadEvents();
   };
 
   const title = isEditing ? "EDIT" : "NEW EVENT";
@@ -344,6 +387,8 @@ export default function CalendarPage() {
           nowIndicator
           selectable
           editable
+          eventResizableFromStart={false}
+          eventDurationEditable={false}
           unselectAuto
           dateClick={handleDateClick}
           datesSet={(info) => {
@@ -351,6 +396,7 @@ export default function CalendarPage() {
           }}
           events={events}
           eventClick={handleEventClick}
+          eventDrop={handleDrop}
           select={handleSelectRange}
         />
       </div>
